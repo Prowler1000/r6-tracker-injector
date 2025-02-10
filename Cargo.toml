@@ -1,0 +1,52 @@
+[workspace]
+name = "r6-tracker-injector"
+version = "0.1.0"
+edition = "2024"
+members = ["client", "thread_safe_utils", "payload", "windows_fns", "logger"]
+
+[workspace.dependencies]
+windows = { version = "0.59", features = [
+    "Data_Xml_Dom",
+    "Win32_Security",
+    "Win32_System_Memory",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_SystemServices",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Diagnostics_Debug",
+] }
+thiserror = "*"
+ipc-channel = { git = "https://github.com/tensor-programming/ipc-channel.git", version = "0.19.0" }
+lazy_static = "1.5.0"
+dll-syringe = { git = "https://github.com/fry/dll-syringe.git", version = "0.15.2", features = [
+    "payload-utils",
+] }
+bincode = { version = "2.0.1", features = ["serde"] }
+serde = { version = "1.0.219", features = ["derive"] }
+process-memory = "0.5.0"
+chrono = { version = "0.4.40", features = ["serde"] }
+
+client = { path = "./client" }
+payload = { path = "./payload" }
+thread_safe_utils = { path = "./thread_safe_utils" }
+logger = { path = "./logger" }
+windows_fns = { path = "./windows_fns" }
+
+[package]
+name = "r6-tracker-injector"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+client = { workspace = true }
+payload = { workspace = true }
+thread_safe_utils = { workspace = true }
+ipc-channel = { workspace = true }
+thiserror = { workspace = true }
+windows = { workspace = true }
+dll-syringe = { workspace = true }
+device_query = "3.0.1"
+logger = { workspace = true }
+lazy_static = { workspace = true }

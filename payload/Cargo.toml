@@ -1,0 +1,17 @@
+[package]
+name = "payload"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+client = { path = "../client" }
+ipc-channel = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+windows = { workspace = true }
+dll-syringe = { workspace = true }
+lazy_static = { workspace = true }
+thread_safe_utils = { workspace = true }
