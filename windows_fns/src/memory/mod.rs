@@ -2,8 +2,11 @@ use std::ptr::addr_of_mut;
 
 use windows::Win32::System::Memory::{MEMORY_BASIC_INFORMATION, VirtualQuery};
 
+pub mod region;
+pub mod heap;
+
 #[inline]
-pub fn query(ptr: *const std::ffi::c_void) -> Option<MEMORY_BASIC_INFORMATION> {
+pub fn query(ptr: *const std::ffi::c_void) -> Result<MEMORY_BASIC_INFORMATION, windows::core::Error> {
     unsafe {
         let mut mbi: MEMORY_BASIC_INFORMATION = std::mem::zeroed();
         let size = VirtualQuery(
@@ -12,9 +15,9 @@ pub fn query(ptr: *const std::ffi::c_void) -> Option<MEMORY_BASIC_INFORMATION> {
             size_of::<MEMORY_BASIC_INFORMATION>(),
         );
         if size == size_of::<MEMORY_BASIC_INFORMATION>() {
-            Some(mbi)
+            Ok(mbi)
         } else {
-            None
+            Err(windows::core::Error::from_win32())
         }
     }
 }

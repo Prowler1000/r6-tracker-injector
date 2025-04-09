@@ -16,7 +16,7 @@ pub enum MemWalkerError {
     InvalidMBI(*const std::ffi::c_void),
     #[error("Windows function call failed with error {} : {}", _0.code(), _0.message())]
     WindowsError(#[from] windows::core::Error),
-    #[error("An unwind panic ocurred")]
+    #[error("An unwind panic occurred")]
     PanicUnwind(Box<dyn std::any::Any + Send>)
 }
 
@@ -54,7 +54,7 @@ impl MemoryWalker {
         let mut addr = self.sys_info.lpMinimumApplicationAddress;
         let max_addr = self.sys_info.lpMaximumApplicationAddress;
         while addr < max_addr {
-            if let Some(mbi) = query(addr) {
+            if let Ok(mbi) = query(addr) {
                 if (mbi.State == MEM_COMMIT)
                     && mbi.Protect.contains(PAGE_READWRITE)
                     && !mbi.Protect.contains(PAGE_GUARD)
@@ -86,7 +86,7 @@ impl MemoryWalker {
             let mut addr = self.sys_info.lpMinimumApplicationAddress;
             let max_addr = self.sys_info.lpMaximumApplicationAddress;
             while addr < max_addr {
-            if let Some(mbi) = query(addr) {
+            if let Ok(mbi) = query(addr) {
                 if (mbi.State == MEM_COMMIT) && mbi.Protect.contains(PAGE_READWRITE) && !mbi.Protect.contains(PAGE_GUARD) {
                     let mut data = vec![0u8; mbi.RegionSize];
                     let mut bytes_read = 0_usize;

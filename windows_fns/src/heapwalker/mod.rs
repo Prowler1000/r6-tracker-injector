@@ -19,6 +19,8 @@ use windows::{
     core::Error,
 };
 
+use crate::{heap::Heap, memory::query};
+
 #[derive(Error, Debug)]
 pub enum HeapWalkerError {
     #[error("Failed to retrieve process heaps with error : {0}")]
@@ -63,17 +65,17 @@ impl HeapWalker {
     ) -> Result<(), windows::core::Error> {
         while self.next_walk < self.heaps.len() {
             let heap_handle = self.heaps[self.next_walk];
-            unsafe { HeapLock(heap_handle)? }
-            while let Ok(Some(size)) = heap_walk(heap_handle, &mut self.entry) {
-                if (self.entry.wFlags as u32 & PROCESS_HEAP_REGION) > 0 {
-                    let arr =
-                        unsafe { std::slice::from_raw_parts(self.entry.lpData as *const u8, size) };
-                    std::panic::catch_unwind(AssertUnwindSafe(|| func(arr))).map_err(|_| windows::core::Error::from_win32())?;
+            let heap = Heap::new(heap_handle);
+            let mut iter = heap.create_commit_iter()?;
+            while let Some(regions) = iter.next_region()? {
+                for region in regions {
+                    if region.is_readwrite() && !region.is_guard() {
+                        let arr = region.align_to::<u8>();
+                        std::panic::catch_unwind(AssertUnwindSafe(|| func(arr))).map_err(|_| windows::core::Error::from_win32())?;
+                    }
                 }
             }
-            unsafe { HeapUnlock(heap_handle)? }
             self.next_walk += 1;
-            self.entry = PROCESS_HEAP_ENTRY::default();
         }
         Ok(())
     }
@@ -85,7 +87,7 @@ fn heap_walk(
 ) -> Result<Option<usize>, windows::core::Error> {
     unsafe {
         while next_heap_entry(heap_handle, entry)? {
-            if let Some(mbi) = query(entry.lpData) {
+            if let Ok(mbi) = query(entry.lpData) {
                 if mbi.State == MEM_COMMIT
                     && mbi.Protect.contains(PAGE_READWRITE)
                     && !mbi.Protect.contains(PAGE_GUARD)
@@ -118,21 +120,5 @@ fn next_heap_entry(
                     Err(e)
                 }
             })
-    }
-}
-
-fn query(ptr: *mut std::ffi::c_void) -> Option<MEMORY_BASIC_INFORMATION> {
-    unsafe {
-        let mut mbi: MEMORY_BASIC_INFORMATION = std::mem::zeroed();
-        let size = VirtualQuery(
-            Some(ptr),
-            addr_of_mut!(mbi),
-            size_of::<MEMORY_BASIC_INFORMATION>(),
-        );
-        if size == size_of::<MEMORY_BASIC_INFORMATION>() {
-            Some(mbi)
-        } else {
-            None
-        }
     }
 }
