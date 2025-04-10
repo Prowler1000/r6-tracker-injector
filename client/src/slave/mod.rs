@@ -97,6 +97,11 @@ impl Slave {
                         Ok(strs) => self.send(Message::DataMessage(DataMessage::Json(strs)))?,
                         Err(e) => self.log_error(e.to_string())?,
                     }
+                    self.log_info("Trying heap version...")?;
+                    match self.locate_json_heap() {
+                        Ok(strs) => self.send(DataMessage::Json(strs).into())?,
+                        Err(e) => self.log_error(e.to_string())?,
+                    }
                 },
                 Command::GetThreadId => {
                     let id = unsafe { GetCurrentThreadId() };

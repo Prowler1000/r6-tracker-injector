@@ -121,7 +121,7 @@ fn master_loop(master: Arc<Master>, log_manager: LogManager) {
             }
             DataMessage::Json(items) => {
                 println!("Located {} json elements!", items.len());
-                let output_dir = current_exe().unwrap().parent().unwrap().join("output");
+                let output_dir = current_exe().unwrap().parent().unwrap().parent().unwrap().join("output");
                 if !output_dir.exists() {
                     fs::create_dir(&output_dir).unwrap();
                 }
