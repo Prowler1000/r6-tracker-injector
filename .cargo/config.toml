@@ -1,0 +1,7 @@
+[profile.dev]
+debug = true
+debug-assertions = true
+split-debuginfo = "packed"  # Or "unpacked" if you want loose .pdbs
+
+[env]
+RUST_BACKTRACE = "1"

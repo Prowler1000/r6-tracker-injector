@@ -2,8 +2,11 @@ use std::ptr::addr_of_mut;
 
 use windows::Win32::System::Memory::{MEMORY_BASIC_INFORMATION, VirtualQuery};
 
-pub mod region;
+pub mod block;
 pub mod heap;
+pub mod region;
+pub mod walk;
+pub mod memwalker;
 
 #[inline]
 pub fn query(ptr: *const std::ffi::c_void) -> Result<MEMORY_BASIC_INFORMATION, windows::core::Error> {

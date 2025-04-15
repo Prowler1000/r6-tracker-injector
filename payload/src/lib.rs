@@ -6,6 +6,7 @@ use client::{
 };
 use ipc_channel::ipc::{IpcReceiver, IpcSender};
 use lazy_static::lazy_static;
+use std::io::Write;
 use thread_safe_utils::signal::{Signal, SignallableData};
 use windows::Win32::{
     Foundation::{FreeLibrary, HANDLE, HMODULE},
@@ -31,9 +32,37 @@ lazy_static! {
     static ref PARAMS: SignallableData<RuntimeStorage> = Default::default();
 }
 
+fn log_to_temp_console(msg: impl Into<String>) {
+    let mut idk = std::process::Command::new("cmd");
+    let formatted_msg = msg.into()
+        .lines()
+        .map(|line| format!("echo {}", line))
+        .collect::<Vec<_>>()
+        .join(" & ");
+    let _ = idk.arg("/K").arg(formatted_msg).spawn();
+}
+
+fn log_to_file(msg: impl AsRef<str>) {
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(r"C:\Users\braed\Documents\GitHub\r6-tracker-injector\dll_crash.txt")
+    {
+        let _ = writeln!(file, "{}", msg.as_ref());
+    }
+}
+
+pub fn set_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = format!("Panic: {}", info);
+        log_to_file(msg.clone());
+        log_to_temp_console(msg);
+    }));
+}
 
 #[no_mangle]
 unsafe extern "system" fn code_runner(_ptr: *mut std::ffi::c_void) -> u32 {
+    set_panic_hook();
     let mut lock = match PARAMS.lock_wait_while(|lock, signal| {
         (lock.receiver.is_none() || lock.sender.is_none()) && !signal
     }) {
@@ -43,25 +72,27 @@ unsafe extern "system" fn code_runner(_ptr: *mut std::ffi::c_void) -> u32 {
             } else {
                 val
             }
-        },
-        Err(_) => {
-            unsafe {
-                let curr_module = PARAMS.ignore_poision().current_module;
-                FreeLibraryAndExitThread(curr_module, 1);
-            }
+        }
+        Err(_) => unsafe {
+            let curr_module = PARAMS.ignore_poision().current_module;
+            FreeLibraryAndExitThread(curr_module, 1);
         },
     };
     let storage = lock.deref_mut();
     let tx = storage.sender.take().unwrap();
     let rx = storage.receiver.take().unwrap();
-    let client = Slave::new(tx, rx, r"C:\Users\braed\Documents\GitHub\r6-tracker-injector\dll.log");
+    let client = Slave::new(
+        tx,
+        rx,
+        r"C:\Users\braed\Documents\GitHub\r6-tracker-injector\dll.log",
+    );
     let _ = client.run_client();
     drop(client);
     FreeLibraryAndExitThread(lock.current_module, 0);
 }
 
 fn receive_ipc_channels(
-    meta_receiver: IpcReceiver<(IpcSender<Message>, IpcSender<IpcSender<Instruction>>)>
+    meta_receiver: IpcReceiver<(IpcSender<Message>, IpcSender<IpcSender<Instruction>>)>,
 ) {
     if let Ok(mut lock) = PARAMS.lock() {
         if let Ok(bundle) = meta_receiver.recv() {
@@ -118,7 +149,7 @@ pub unsafe extern "system" fn DllMain(
                         Some(code_runner),
                         None,
                         THREAD_CREATION_FLAGS(0),
-                        None
+                        None,
                     ) {
                         lock.code_thread = Some(handle);
                     } else {

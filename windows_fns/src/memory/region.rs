@@ -1,53 +1,96 @@
-use windows::Win32::System::{Memory::{MEMORY_BASIC_INFORMATION, PAGE_GUARD, PAGE_READWRITE, PROCESS_HEAP_ENTRY}, SystemServices::PROCESS_HEAP_REGION};
+use std::fmt::Display;
+use super::block::MemoryBlock;
 
-use super::query;
-
+#[derive(Clone, PartialEq)]
 pub struct Region {
-    data_ptr: *const std::ffi::c_void,
-    pub size: usize,
-    pub mbi: MEMORY_BASIC_INFORMATION,
+    pub first_valid_address: *const std::ffi::c_void,
+    pub first_invalid_address: *const std::ffi::c_void,
+    pub region_size: usize,
+    pub blocks: Vec<MemoryBlock>,
 }
 
 impl Region {
-    pub fn new(data_ptr: *const std::ffi::c_void) -> Result<Self, windows::core::Error> {
-        let mbi = query(data_ptr)?;
-        Ok(Self {
-            data_ptr,
-            size: mbi.RegionSize,
-            mbi,
-        })
-    }
-
-    pub fn from_heap_entry(entry: PROCESS_HEAP_ENTRY) -> Result<Vec<Self>, windows::core::Error> {
-        assert!(entry.wFlags as u32 & PROCESS_HEAP_REGION != 0);
-        let mut next_block = unsafe { entry.Anonymous.Region.lpFirstBlock };
-        let last_block = unsafe { entry.Anonymous.Region.lpLastBlock };
-        let mut regions = Vec::new();
-        while unsafe { next_block.offset_from(last_block) < 0 } {
-            let region = Region::new(next_block)?;
-            next_block = unsafe { next_block.add(region.size) };
-            regions.push(region);
+    pub fn new(
+        first_valid_address: *const std::ffi::c_void,
+        first_invalid_address: *const std::ffi::c_void,
+        region_size: usize,
+    ) -> Self {
+        assert!(
+            first_invalid_address >= first_valid_address,
+            "Invalid address range"
+        );
+        Self {
+            first_valid_address,
+            first_invalid_address,
+            region_size,
+            blocks: Vec::new(),
         }
-        Ok(regions)
     }
 
-    pub fn is_guard(&self) -> bool {
-        self.mbi.Protect.contains(PAGE_GUARD)
+    pub fn get_first_addr(&self) -> *const std::ffi::c_void {
+        self.first_valid_address
     }
 
-    pub fn is_readwrite(&self) -> bool {
-        self.mbi.Protect.contains(PAGE_READWRITE)
+    pub fn get_last_addr(&self) -> *const std::ffi::c_void {
+        self.first_valid_address.wrapping_byte_add(self.region_size)
     }
 
-    // To protect from accidentally modifying the pointer, which would cause panics when calling align_to
-    pub fn get_ptr(&self) -> *const std::ffi::c_void {
-        self.data_ptr
+    pub fn contains(&self, ptr: *const std::ffi::c_void) -> bool {
+        ptr >= self.get_first_addr() && ptr < self.get_last_addr()
     }
+}
 
-    pub fn align_to<'a, T>(&self) -> &'a[T] {
-        let (_prefix, aligned, _suffix) = unsafe {
-            std::slice::from_raw_parts(self.data_ptr, self.size).align_to::<T>()
-        };
-        aligned
+impl Display for Region {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:#?} - {:#?}",
+            self.get_first_addr(),
+            self.get_last_addr()
+        )
+    }
+}
+
+pub struct RegionInfo {
+    pub first_valid_address: *const std::ffi::c_void,
+    pub first_invalid_address: *const std::ffi::c_void,
+    pub region_size: usize,
+    pub num_blocks: usize,
+}
+
+impl RegionInfo {
+    pub fn get_first_addr(&self) -> *const std::ffi::c_void {
+        self.first_valid_address
+    }
+    pub fn get_last_addr(&self) -> *const std::ffi::c_void {
+        self.first_valid_address.wrapping_byte_add(self.region_size)
+    }
+}
+
+impl Display for RegionInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:#?} - {:#?}",
+            self.get_first_addr(),
+            self.get_last_addr()
+        )
+    }
+}
+
+impl From<&Region> for RegionInfo {
+    fn from(value: &Region) -> Self {
+        Self {
+            first_valid_address: value.first_valid_address,
+            first_invalid_address: value.first_invalid_address,
+            region_size: value.region_size,
+            num_blocks: value.blocks.len(),
+        }
+    }
+}
+
+impl From<Region> for RegionInfo {
+    fn from(value: Region) -> Self {
+        Self::from(&value)
     }
 }

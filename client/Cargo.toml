@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-windows_fns = { workspace = true}
+windows_fns = { workspace = true }
 ipc-channel = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
@@ -13,3 +13,4 @@ dll-syringe = { workspace = true }
 widestring = "1.2.0"
 thread_safe_utils = { workspace = true }
 logger = { workspace = true }
+num-format = { workspace = true }

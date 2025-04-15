@@ -14,7 +14,7 @@ I originally designed this in C++, implementing injection, ipc, etc. all manuall
   * For some reason, creating a dedicated logging crate was an after thought. (Not really a mystery, I know *why* I did it, it's just a stupid reason) As a result, its implementation and usage feel clunky, though that may just be me.
 * ### Improve comments
   * My God, do you not remember the number of times you've cursed other OSS for poor documentation and comments only useful if you understand the entire codebase? So where the heck are *your* comments? If you wanna judge others for something, you probably shouldn't do the same thing yourself. (I mean, you shouldn't judge others in general, but still)
+* ### Improve memory walking / Expand heap walking
+  * Currently, if we want to actually find the data we're interested in, we have to walk the entire range of memory manually, which is unbelievably slow. This is a result of .NET doing its own allocations for heaps. I should properly understand how memory is allocated on Windows first (for instance, why do Windows heaps even exist if programs can allocate memory not in a Windows heap?) but you'll likely have to use something like `SOS.dll` to figure out where the heaps are stored as you have confirmed they are *not* at the same virtual address every run, and even if they were, that might change in the future. A possibility is *storing* where the heap is after a walk, but if you don't understand .NET memory management completely, it could just randomly not work and you'll waste a lot of time figuring out why.
 
 This README is more for my own sanity. I'll probably drop this and come back to it after a while, so this serves as a reminder of how things started, what I needed to work on, and why some things are the way they are.
-
-Also, sorry future me for the very basic commit history, we made a mess of it before publishing and decided to rewrite some history and make that go away

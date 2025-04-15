@@ -1,7 +1,13 @@
-use windows::Win32::{Foundation::{ERROR_NO_MORE_ITEMS, HANDLE}, System::{Memory::{HeapLock, HeapUnlock, HeapWalk, PROCESS_HEAP_ENTRY}, SystemServices::PROCESS_HEAP_REGION}};
-
-use super::region::Region;
-
+use windows::Win32::System::Memory::*;
+use windows::Win32::System::Diagnostics::Debug::*;
+use windows::Win32::System::SystemServices::{PROCESS_HEAP_ENTRY_BUSY, PROCESS_HEAP_REGION};
+use windows::Win32::System::Threading::*;
+use windows::Win32::Foundation::*;
+use windows::core::Error;
+use crate::region::{Region, RegionInfo};
+use crate::block::MemoryBlock;
+use crate::walk::WalkInfo;
+use std::panic::AssertUnwindSafe;
 
 pub struct Heap {
     handle: HANDLE,
@@ -9,63 +15,48 @@ pub struct Heap {
 
 impl Heap {
     pub fn new(handle: HANDLE) -> Self {
-        Self {
-            handle
-        }
-    }
-
-    pub fn create_commit_iter(self) -> Result<CommitedIter, windows::core::Error> {
-        CommitedIter::new(self.handle)
+        Self { handle }
     }
 }
 
-pub struct CommitedIter {
+pub struct HeapWalkerInternal {
     handle: HANDLE,
     entry: Option<PROCESS_HEAP_ENTRY>,
 }
 
-impl Drop for CommitedIter {
+impl Drop for HeapWalkerInternal {
     fn drop(&mut self) {
         if self.entry.is_some() {
-            let _ = unsafe { HeapUnlock(self.handle) };
+            unsafe {
+                let _ = HeapUnlock(self.handle);
+            }
         }
     }
 }
 
-impl CommitedIter {
-    fn new(handle: HANDLE) -> Result<Self, windows::core::Error> {
-        Ok(
-            Self {
-                handle,
-                entry: None,
-            }
-        )
+impl HeapWalkerInternal {
+    pub fn new(handle: HANDLE) -> Self {
+        Self {
+            handle,
+            entry: None,
+        }
     }
 
-    pub fn next_region(&mut self) -> Result<Option<Vec<Region>>, windows::core::Error> {
+    pub fn next_entry(&mut self) -> Result<Option<PROCESS_HEAP_ENTRY>, Error> {
         let entry = if let Some(entry) = self.entry.as_mut() {
             entry
         } else {
-            unsafe { HeapLock(self.handle)? }
-            self.entry = Some(unsafe { std::mem::zeroed() });
-            self.entry.as_mut().unwrap()
+            unsafe {
+                HeapLock(self.handle)?;
+                self.entry = Some(std::mem::zeroed());
+                self.entry.as_mut().unwrap()
+            }
         };
 
-        loop {
-            match unsafe { HeapWalk(self.handle, entry) } { 
-                Ok(_) => {
-                    if entry.wFlags as u32 & PROCESS_HEAP_REGION != 0 {
-                        return Ok(Some(Region::from_heap_entry(*entry)?));
-                    }
-                },
-                Err(e) => {
-                    if e == ERROR_NO_MORE_ITEMS.into() {
-                        return Ok(None);
-                    } else {
-                        return Err(e);
-                    }
-                },
-            }
+        match unsafe { HeapWalk(self.handle, entry) } {
+            Ok(_) => Ok(Some(*entry)),
+            Err(e) if e.code() == ERROR_NO_MORE_ITEMS.to_hresult() => Ok(None),
+            Err(e) => Err(e),
         }
     }
 }

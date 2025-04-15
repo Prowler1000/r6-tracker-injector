@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use ipc_channel::ipc::{IpcReceiver, IpcSender};
 use logger::{loggers::{file::{FileConflictBehavior, FileLogger}, filter::LogFilter, multi::MultiLogger}, severity::LogSeverity, LogManager, LogMessage, Logger};
 use thread_safe_utils::queue::ThreadSafeQueue;
+use widestring::Utf16String;
 use windows::Win32::System::Threading::{GetCurrentProcessId, GetCurrentThreadId};
 
 use crate::{
@@ -66,7 +67,7 @@ impl Slave {
         let ipc_logger = IpcLogger { queue: ipc.send_queue.clone() };
         let file_logger = FileLogger::new(log_path.into(), FileConflictBehavior::Overwrite).unwrap();
         let multi_logger = MultiLogger::new().with_logger(ipc_logger).with_logger(file_logger);
-        let filter = LogFilter::new(LogSeverity::Debug, multi_logger);
+        let filter = LogFilter::new(LogSeverity::Verbose, multi_logger);
         let log_manager = LogManager::new(filter);
         Self {
             ipc,
@@ -94,11 +95,6 @@ impl Slave {
                 },
                 crate::messages::Command::FindJSON => {
                     match self.locate_json() {
-                        Ok(strs) => self.send(Message::DataMessage(DataMessage::Json(strs)))?,
-                        Err(e) => self.log_error(e.to_string())?,
-                    }
-                    self.log_info("Trying heap version...")?;
-                    match self.locate_json_heap() {
                         Ok(strs) => self.send(DataMessage::Json(strs).into())?,
                         Err(e) => self.log_error(e.to_string())?,
                     }

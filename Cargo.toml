@@ -28,6 +28,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 process-memory = "0.5.0"
 chrono = { version = "0.4.40", features = ["serde"] }
 crossterm = "0.29.0"
+num-format = "0.4.4"
 
 client = { path = "./client" }
 payload = { path = "./payload" }
@@ -44,6 +45,7 @@ edition = "2021"
 client = { workspace = true }
 payload = { workspace = true }
 thread_safe_utils = { workspace = true }
+windows_fns = { workspace = true }
 ipc-channel = { workspace = true }
 thiserror = { workspace = true }
 windows = { workspace = true }
@@ -52,3 +54,4 @@ device_query = "3.0.1"
 logger = { workspace = true }
 lazy_static = { workspace = true }
 crossterm = "0.29.0"
+rand = "0.9.0"
