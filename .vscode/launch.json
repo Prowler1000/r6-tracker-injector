@@ -7,15 +7,110 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'client'",
+            "name": "Debug unit tests in library 'client'",
             "cargo": {
                 "args": [
-                    "build",
-                    "--bin=client",
+                    "test",
+                    "--no-run",
+                    "--lib",
                     "--package=client"
                 ],
                 "filter": {
                     "name": "client",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'logger'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=logger"
+                ],
+                "filter": {
+                    "name": "logger",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'thread_safe_utils'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=thread_safe_utils"
+                ],
+                "filter": {
+                    "name": "thread_safe_utils",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'windows_fns'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=windows_fns"
+                ],
+                "filter": {
+                    "name": "windows_fns",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'siege'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=siege"
+                ],
+                "filter": {
+                    "name": "siege",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'r6-tracker-injector'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=r6-tracker-injector",
+                    "--package=r6-tracker-injector"
+                ],
+                "filter": {
+                    "name": "r6-tracker-injector",
                     "kind": "bin"
                 }
             },
@@ -25,16 +120,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'client'",
+            "name": "Debug unit tests in executable 'r6-tracker-injector'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=client",
-                    "--package=client"
+                    "--bin=r6-tracker-injector",
+                    "--package=r6-tracker-injector"
                 ],
                 "filter": {
-                    "name": "client",
+                    "name": "r6-tracker-injector",
                     "kind": "bin"
                 }
             },

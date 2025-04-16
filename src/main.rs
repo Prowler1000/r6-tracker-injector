@@ -6,9 +6,9 @@ use client_info::ClientInfo;
 use device_query::{DeviceEvents, DeviceEventsHandler, Keycode};
 use dll_syringe::{process::OwnedProcess, Syringe};
 use ipc_channel::ipc::{IpcReceiver, IpcSender};
-use logger::{loggers::{console::ConsoleLogger, filter::LogFilter}, severity::LogSeverity, LogManager, LogMessage};
-use windows_fns::heapwalker::HeapWalker;
-use std::{fs, sync::Mutex};
+use logger::{loggers::{console::ConsoleLogger, filter::LogFilter, null::NullLogger}, severity::LogSeverity, LogManager, LogMessage};
+use siege::MatchData;
+use std::fs;
 use std::path::Path;
 use std::{env::current_exe, sync::Arc, time::Duration};
 use std::collections::HashMap;
@@ -92,8 +92,9 @@ fn main() {
     path.pop();
     path.push(DLL_PATH);
     if let Some((sender, receiver)) = setup(&path) {
-        let console_logger = ConsoleLogger::new();
-        let log_manager = LogManager::new(LogFilter::new(LogSeverity::Debug, console_logger));
+        //let console_logger = ConsoleLogger::new();
+        let null_logger = NullLogger::new();
+        let log_manager = LogManager::new(LogFilter::new(LogSeverity::Debug, null_logger));
 
         let master = Arc::new(Master::new(sender, receiver, log_manager.get_log_worker()));
 
@@ -104,17 +105,63 @@ fn main() {
     }
 }
 
+fn load_latest_json(client_info: &mut ClientInfo) {
+    let output_dir = current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("target")
+        .join("output");
+    if let Ok(entries) = fs::read_dir(output_dir) {
+        let mut latest_file = None;
+        let mut latest_time = std::time::SystemTime::UNIX_EPOCH;
+
+        for entry in entries.flatten() {
+            if let Ok(metadata) = entry.metadata() {
+                if let Ok(modified) = metadata.modified() {
+                    if modified > latest_time {
+                        latest_time = modified;
+                        latest_file = Some(entry.path());
+                    }
+                }
+            }
+        }
+
+        if let Some(latest_path) = latest_file {
+            if let Ok(json_data) = fs::read_to_string(&latest_path) {
+                if let Some(match_data) = MatchData::new(&json_data) {
+                    client_info.add_game_info(match_data);
+                    println!("Loaded latest JSON from {:?}", latest_path);
+                } else {
+                    println!("Failed to parse MatchData from {:?}", latest_path);
+                }
+            } else {
+                println!("Failed to read file {:?}", latest_path);
+            }
+        } else {
+            println!("No JSON files found in the output directory.");
+        }
+    } else {
+        println!("Failed to read the output directory.");
+    }
+}
+
 fn master_loop(master: Arc<Master>, log_manager: LogManager) {
     let mut client_info = ClientInfo::new();
+    load_latest_json(&mut client_info);
+    client_info.redraw_console();
+    master.send(Command::Quit).unwrap();
     while let Ok(res) = master.recv() {
         match res {
             DataMessage::ProcessId(id) => {
+                client_info.set_process_id(id);
                 let _ = log_manager.log(LogMessage::new(
                     LogSeverity::Info,
                     format!("Returned process ID: {}", id),
                 ));
             }
             DataMessage::ThreadId(id) => {
+                client_info.set_thread_id(id);
                 let _ = log_manager.log(LogMessage::new(
                     LogSeverity::Info,
                     format!("Returned thread ID: {}", id),
@@ -125,6 +172,11 @@ fn master_loop(master: Arc<Master>, log_manager: LogManager) {
                 let output_dir = current_exe().unwrap().parent().unwrap().parent().unwrap().join("output");
                 if !output_dir.exists() {
                     fs::create_dir(&output_dir).unwrap();
+                }
+                for json in &items {
+                    if let Some(data) = MatchData::new(json) {
+                        client_info.add_game_info(data);
+                    }
                 }
 
                 let mut i = 0;
@@ -138,5 +190,6 @@ fn master_loop(master: Arc<Master>, log_manager: LogManager) {
                 }
             }
         }
+        client_info.redraw_console();
     }
 }

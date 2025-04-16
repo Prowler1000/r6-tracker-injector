@@ -1,13 +1,6 @@
 use windows::Win32::System::Memory::*;
-use windows::Win32::System::Diagnostics::Debug::*;
-use windows::Win32::System::SystemServices::{PROCESS_HEAP_ENTRY_BUSY, PROCESS_HEAP_REGION};
-use windows::Win32::System::Threading::*;
 use windows::Win32::Foundation::*;
 use windows::core::Error;
-use crate::region::{Region, RegionInfo};
-use crate::block::MemoryBlock;
-use crate::walk::WalkInfo;
-use std::panic::AssertUnwindSafe;
 
 pub struct Heap {
     handle: HANDLE,
