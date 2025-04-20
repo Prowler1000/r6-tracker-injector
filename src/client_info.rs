@@ -35,12 +35,13 @@ impl ClientInfo {
     fn draw_match_data(&self, data: &MatchData) {
         let mut stdout = stdout();
         let headers = vec![
+            "Found".to_string(),
             "Name".to_string(),
             "Level".to_string(),
             "K/D".to_string(),
             "Matches Played".to_string(),
             "Privacy Name Enabled".to_string(),
-            "Privacy Name".to_string(),
+            "Real Name".to_string(),
             "Tracker User".to_string(),
             "Tracker Premium".to_string(),
             "Suspected Cheater".to_string(),
@@ -49,15 +50,17 @@ impl ClientInfo {
 
         for player in &data.players {
             let row = vec![
-                player.name.clone(),
+                player.is_found.to_string(),
+                player.privacy_name.clone().unwrap_or(player.name.clone()),
                 player.lifetime_stats.level.to_string(),
                 format!("{:.2}", player.lifetime_stats.kd),
                 player.lifetime_stats.matches_played.to_string(),
                 player.privacy_name_enabled.to_string(),
-                player
-                    .privacy_name
-                    .clone()
-                    .unwrap_or_else(|| "N/A".to_string()),
+                if player.privacy_name_enabled {
+                    player.name.clone()
+                } else {
+                    "N/A".to_string()
+                },
                 player.is_tracker_user.to_string(),
                 player.is_tracker_premium.to_string(),
                 player.is_suspected_cheater.to_string(),
@@ -103,6 +106,8 @@ impl ClientInfo {
                 // };
                 let cell = if player.is_suspected_cheater {
                     cell.red()
+                } else if !player.is_found {
+                    cell.grey()
                 } else {
                     cell
                 };

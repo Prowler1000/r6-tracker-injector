@@ -7,8 +7,8 @@ use thread_safe_utils::{queue::ThreadSafeQueue, signal::Signal};
 
 mod error;
 pub mod master;
-pub mod messages;
 pub mod slave;
+pub mod control;
 
 trait PipeData: Serialize + for<'a> Deserialize<'a> + Send + 'static {}
 impl<T> PipeData for T where T: Serialize + for<'a> Deserialize<'a> + Send + 'static {}
@@ -107,7 +107,7 @@ impl<S: PipeData, R: PipeData> IpcEnd<S, R> {
     pub fn send(&self, data: S) -> Result<(), ()> {
         if let Some(thread) = self.send_thread.as_ref() {
             if !thread.is_finished() {
-                // ThreadSafeQueue should never have its mutex poisioned, so this shouldn't be an issue
+                // ThreadSafeQueue should never have its mutex poisoned, so this shouldn't be an issue
                 self.send_queue.enqueue(data).unwrap();
                 return Ok(());
             }

@@ -16,8 +16,10 @@ pub struct FileLogger {
 
 impl Logger for FileLogger {
     fn log(&mut self, message: &crate::LogMessage) -> bool {
-        let content = format!("({}) | {} : {}\n", message.time.format("%Y-%b-%d %I:%M%p"),message.severity, message.content);
-        self.file.write_all(content.as_bytes()).is_ok()
+        microseh::try_seh(|| {
+            let content = format!("({}) | {:#?} : {}\n", message.time.format("%Y-%b-%d %I:%M%p"), message.severity, message.content);
+            self.file.write_all(content.as_bytes()).is_ok()
+        }).is_ok()
     }
 }
 

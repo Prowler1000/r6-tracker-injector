@@ -1,6 +1,5 @@
 use std::{
-    collections::VecDeque,
-    time::Duration,
+    collections::VecDeque, sync::Arc, time::Duration
 };
 
 use thiserror::Error;
@@ -9,15 +8,15 @@ use crate::signal::{self, Signal, SignallableData};
 
 #[derive(Error, Debug)]
 pub enum ThreadSafeQueueError {
-    #[error("The queue mutex was poisioned.")]
-    MutexPoision,
+    #[error("The queue mutex was poisoned.")]
+    MutexPoison,
     #[error("The status is not OK.")]
     StatusNotOk,
 }
 
 #[derive(Default)]
 pub struct ThreadSafeQueue<T: Send + 'static> {
-    queue: SignallableData<VecDeque<T>>,
+    queue: Arc<SignallableData<VecDeque<T>>>,
 }
 
 impl<T: Send + 'static> Clone for ThreadSafeQueue<T> {
@@ -45,7 +44,7 @@ impl<T: Send + 'static> Signal for ThreadSafeQueue<T> {
 
 impl<T: Send + 'static> ThreadSafeQueue<T> {
     pub fn new() -> Self {
-        let queue = SignallableData::default();
+        let queue = Arc::new(SignallableData::default());
         Self { queue }
     }
 
@@ -53,7 +52,7 @@ impl<T: Send + 'static> ThreadSafeQueue<T> {
         let mut lock = self
             .queue
             .lock_wait_while(|queue, signal| queue.is_empty() && !signal)
-            .map_err(|_| ThreadSafeQueueError::MutexPoision)?;
+            .map_err(|_| ThreadSafeQueueError::MutexPoison)?;
         if !lock.is_signalled() {
             Ok(lock.pop_front().unwrap())
         } else {
@@ -75,11 +74,11 @@ impl<T: Send + 'static> ThreadSafeQueue<T> {
         self.queue
             .lock_wait_while_timeout(dur, |queue, _| queue.is_empty())
             .map(|opt| opt.map(|mut queue| queue.pop_front().unwrap()))
-            .map_err(|_| ThreadSafeQueueError::MutexPoision)
+            .map_err(|_| ThreadSafeQueueError::MutexPoison)
     }
 
     pub fn enqueue(&self, data: T) -> Result<(), ThreadSafeQueueError> {
-        let mut lock = self.queue.lock().map_err(|_| ThreadSafeQueueError::MutexPoision)?;
+        let mut lock = self.queue.lock().map_err(|_| ThreadSafeQueueError::MutexPoison)?;
         lock.push_back(data);
         Ok(())
     }

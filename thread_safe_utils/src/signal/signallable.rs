@@ -44,23 +44,14 @@ impl<'sd, T> DerefMut for SignallableLock<'sd, T> {
 
 impl<T> From<PoisonError<MutexGuard<'_, DataSignalPair<T>>>> for SignalResult {
     fn from(value: PoisonError<MutexGuard<'_, DataSignalPair<T>>>) -> Self {
-        Self::SignalPoisioned(value.get_ref().signal)
+        Self::SignalPoisoned(value.get_ref().signal)
     }
 }
 
 #[derive(Default)]
 pub struct SignallableData<T> {
-    data: Arc<Mutex<DataSignalPair<T>>>,
-    condvar: Arc<Condvar>,
-}
-
-impl<T> Clone for SignallableData<T> {
-    fn clone(&self) -> Self {
-        Self {
-            data: self.data.clone(),
-            condvar: self.condvar.clone(),
-        }
-    }
+    data: Mutex<DataSignalPair<T>>,
+    condvar: Condvar,
 }
 
 unsafe impl<T> Send for SignallableData<T> {}
@@ -69,18 +60,21 @@ unsafe impl<T> Sync for SignallableData<T> {}
 impl<T> SignallableData<T> {
     pub fn new(data: T) -> Self {
         Self {
-            data: Arc::new(Mutex::new(DataSignalPair {
+            data: Mutex::new(DataSignalPair {
                 data,
                 signal: false,
-            })),
+            }),
             condvar: Default::default(),
         }
     }
 
-    pub fn new_with_condvar(data: T, condvar: Arc<Condvar>) -> Self {
-        Self {
-            data: Arc::new(Mutex::new(DataSignalPair { data, signal: false })),
-            condvar
+    pub fn into_inner(self) -> Result<(T, bool), (T, bool)> {
+        match self.data.into_inner() {
+            Ok(data) => Ok((data.data, data.signal)),
+            Err(poison) => {
+                let data = poison.into_inner();
+                Err((data.data, data.signal))
+            },
         }
     }
 
@@ -104,7 +98,9 @@ impl<'sd, T> SignallableData<T> {
         match self.data.try_lock() {
             Ok(lock) => Ok(Some(self.create_lock_thingy_idk(lock))),
             Err(e) => match e {
-                std::sync::TryLockError::Poisoned(poison_error) => Err(SignalResult::SignalPoisioned(poison_error.get_ref().signal)),
+                std::sync::TryLockError::Poisoned(poison_error) => {
+                    Err(SignalResult::SignalPoisoned(poison_error.get_ref().signal))
+                }
                 std::sync::TryLockError::WouldBlock => Ok(None),
             },
         }
@@ -138,8 +134,7 @@ impl<'sd, T> SignallableData<T> {
         mut condition: F,
     ) -> Result<Option<SignallableLock<'sd, T>>, SignalResult> {
         let guard = self.get_guard()?;
-        self
-            .condvar
+        self.condvar
             .wait_timeout_while(guard, dur, |lock| condition(&lock.data, &lock.signal))
             .map(|(lock, to)| {
                 if to.timed_out() {
@@ -148,17 +143,23 @@ impl<'sd, T> SignallableData<T> {
                     Some(self.create_lock_thingy_idk(lock))
                 }
             })
-            .map_err(|e| SignalResult::SignalPoisioned(e.get_ref().0.signal))
+            .map_err(|e| SignalResult::SignalPoisoned(e.get_ref().0.signal))
+    }
+
+    pub fn lock_wait_for_signal(&'sd self) -> Result<SignallableLock<'sd, T>, SignalResult> {
+        let guard = self.get_guard()?;
+        let guard = self.condvar.wait_while(guard, |g| !g.signal)?;
+        Ok(self.create_lock_thingy_idk(guard))
     }
 
     /// # Safety
-    /// This function assumes that the `Mutex` is poisoned and directly accesses the inner data.
+    /// This function accesses the data regardless of whether or not its poisoned.
     /// The caller must ensure that using the poisoned data will not cause undefined behavior.
-        pub unsafe fn ignore_poision(&'sd self) -> SignallableLock<'sd, T> {
-        assert!(self.data.is_poisoned());
-        let error = unsafe { self.data.lock().unwrap_err_unchecked() };
-        let inner = error.into_inner();
-        self.create_lock_thingy_idk(inner)
+    pub unsafe fn lock_ignore_poison(&'sd self) -> SignallableLock<'sd, T> {
+        match self.data.lock() {
+            Ok(guard) => self.create_lock_thingy_idk(guard),
+            Err(poison) => self.create_lock_thingy_idk(poison.into_inner()),
+        }
     }
 }
 
@@ -166,7 +167,7 @@ impl<T> Signal for SignallableData<T> {
     fn is_signalled(&self) -> bool {
         match self.get_guard() {
             Ok(guard) => guard.signal,
-            Err(poision) => poision.get_ref().signal,
+            Err(poison) => poison.get_ref().signal,
         }
     }
 

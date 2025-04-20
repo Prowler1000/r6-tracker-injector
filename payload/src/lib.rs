@@ -1,7 +1,7 @@
-use std::ops::DerefMut;
+use std::{ops::DerefMut, thread};
 
 use client::{
-    messages::{Instruction, Message},
+    control::{command::Instruction, message::Message},
     slave::Slave,
 };
 use ipc_channel::ipc::{IpcReceiver, IpcSender};
@@ -34,7 +34,8 @@ lazy_static! {
 
 fn log_to_temp_console(msg: impl Into<String>) {
     let mut idk = std::process::Command::new("cmd");
-    let formatted_msg = msg.into()
+    let formatted_msg = msg
+        .into()
         .lines()
         .map(|line| format!("echo {}", line))
         .collect::<Vec<_>>()
@@ -68,13 +69,13 @@ unsafe extern "system" fn code_runner(_ptr: *mut std::ffi::c_void) -> u32 {
     }) {
         Ok(val) => {
             if val.is_signalled() {
-                FreeLibraryAndExitThread(val.current_module, 0);
+                unsafe { FreeLibraryAndExitThread(val.current_module, 0) };
             } else {
                 val
             }
         }
         Err(_) => unsafe {
-            let curr_module = PARAMS.ignore_poision().current_module;
+            let curr_module = PARAMS.lock_ignore_poison().current_module;
             FreeLibraryAndExitThread(curr_module, 1);
         },
     };

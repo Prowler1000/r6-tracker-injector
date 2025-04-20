@@ -1,35 +1,7 @@
-use std::fmt::Display;
-
 use logger::LogMessage;
 use serde::{Deserialize, Serialize};
 
-pub type CommandID = usize;
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Instruction {
-    pub id: CommandID,
-    pub command: Command,
-}
-
-impl Display for Instruction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}) {}", self.id, self.command)
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum Command {
-    FindJSON,
-    GetProcessId,
-    GetThreadId,
-    Quit,
-}
-
-impl Display for Command {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
+use super::command::CommandID;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Message {

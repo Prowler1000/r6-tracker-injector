@@ -1,17 +1,27 @@
 use client::{
+    control::{
+        command::{Command, Instruction},
+        message::{DataMessage, Message},
+    },
     master::Master,
-    messages::{Command, DataMessage, Instruction, Message},
 };
 use client_info::ClientInfo;
 use device_query::{DeviceEvents, DeviceEventsHandler, Keycode};
 use dll_syringe::{process::OwnedProcess, Syringe};
 use ipc_channel::ipc::{IpcReceiver, IpcSender};
-use logger::{loggers::{console::ConsoleLogger, filter::LogFilter, null::NullLogger}, severity::LogSeverity, LogManager, LogMessage};
+use logger::{
+    loggers::{console::ConsoleLogger, filter::LogFilter, null::NullLogger},
+    severity::LogSeverity,
+    LogManager, LogMessage,
+};
 use siege::MatchData;
+use std::{collections::HashMap, fs::File, io::{BufReader, BufWriter, Stdin}};
 use std::fs;
 use std::path::Path;
 use std::{env::current_exe, sync::Arc, time::Duration};
-use std::collections::HashMap;
+use std::process::{Command as ProcessCommand, Stdio};
+use std::io::Write;
+use std::io::{self, Read};
 
 mod client_info;
 
@@ -92,9 +102,9 @@ fn main() {
     path.pop();
     path.push(DLL_PATH);
     if let Some((sender, receiver)) = setup(&path) {
-        //let console_logger = ConsoleLogger::new();
-        let null_logger = NullLogger::new();
-        let log_manager = LogManager::new(LogFilter::new(LogSeverity::Debug, null_logger));
+        let console_logger = ConsoleLogger::new();
+        //let console_logger = NullLogger::new();
+        let log_manager = LogManager::new(LogFilter::new(LogSeverity::Debug, console_logger));
 
         let master = Arc::new(Master::new(sender, receiver, log_manager.get_log_worker()));
 
@@ -148,9 +158,8 @@ fn load_latest_json(client_info: &mut ClientInfo) {
 
 fn master_loop(master: Arc<Master>, log_manager: LogManager) {
     let mut client_info = ClientInfo::new();
-    load_latest_json(&mut client_info);
-    client_info.redraw_console();
-    master.send(Command::Quit).unwrap();
+    //load_latest_json(&mut client_info);
+    //client_info.redraw_console();
     while let Ok(res) = master.recv() {
         match res {
             DataMessage::ProcessId(id) => {
@@ -169,7 +178,13 @@ fn master_loop(master: Arc<Master>, log_manager: LogManager) {
             }
             DataMessage::Json(items) => {
                 println!("Located {} json elements!", items.len());
-                let output_dir = current_exe().unwrap().parent().unwrap().parent().unwrap().join("output");
+                let output_dir = current_exe()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .join("output");
                 if !output_dir.exists() {
                     fs::create_dir(&output_dir).unwrap();
                 }
@@ -190,6 +205,6 @@ fn master_loop(master: Arc<Master>, log_manager: LogManager) {
                 }
             }
         }
-        client_info.redraw_console();
+        //client_info.redraw_console();
     }
 }

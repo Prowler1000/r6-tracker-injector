@@ -3,11 +3,10 @@ use std::path::PathBuf;
 use ipc_channel::ipc::{IpcReceiver, IpcSender};
 use logger::{loggers::{file::{FileConflictBehavior, FileLogger}, filter::LogFilter, multi::MultiLogger}, severity::LogSeverity, LogManager, LogMessage, Logger};
 use thread_safe_utils::queue::ThreadSafeQueue;
-use widestring::Utf16String;
 use windows::Win32::System::Threading::{GetCurrentProcessId, GetCurrentThreadId};
 
 use crate::{
-    error::IpcError, messages::{Command, DataMessage, Instruction, Message}, IpcEnd
+    error::IpcError, control::{command::{Instruction, Command}, message::{DataMessage, Message}}, IpcEnd
 };
 
 mod json;
@@ -89,11 +88,11 @@ impl Slave {
         while let Ok(inst) = self.ipc.recv() {
             self.acknowledge(&inst)?;
             match inst.command {
-                crate::messages::Command::Quit => {
+                Command::Quit => {
                     let _ = self.log_info("Quitting...");
                     break;
                 },
-                crate::messages::Command::FindJSON => {
+                Command::FindJSON => {
                     match self.locate_json() {
                         Ok(strs) => self.send(DataMessage::Json(strs).into())?,
                         Err(e) => self.log_error(e.to_string())?,

@@ -14,14 +14,14 @@ pub trait Signal {
 #[derive(Debug)]
 pub enum SignalResult {
     SignalOk(bool),
-    SignalPoisioned(bool),
+    SignalPoisoned(bool),
 }
 
 impl SignalResult {
     pub fn is_signalled(&self) -> bool {
         match self {
             SignalResult::SignalOk(val) => *val,
-            SignalResult::SignalPoisioned(val) => *val,
+            SignalResult::SignalPoisoned(val) => *val,
         }
     }
 }
@@ -30,7 +30,7 @@ impl From<SignalResult> for Result<bool, bool> {
     fn from(value: SignalResult) -> Self {
         match value {
             SignalResult::SignalOk(val) => Ok(val),
-            SignalResult::SignalPoisioned(val) => Err(val),
+            SignalResult::SignalPoisoned(val) => Err(val),
         }
     }
 }
@@ -39,7 +39,7 @@ impl From<SignalResult> for bool {
     fn from(value: SignalResult) -> Self {
         match value {
             SignalResult::SignalOk(val) => val,
-            SignalResult::SignalPoisioned(val) => val,
+            SignalResult::SignalPoisoned(val) => val,
         }
     }
 }
@@ -49,7 +49,7 @@ impl Deref for SignalResult {
     fn deref(&self) -> &Self::Target {
         match self {
             SignalResult::SignalOk(val) => val,
-            SignalResult::SignalPoisioned(val) => val,
+            SignalResult::SignalPoisoned(val) => val,
         }
     }
 }

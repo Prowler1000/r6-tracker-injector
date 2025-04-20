@@ -15,16 +15,18 @@ pub enum IpcError {
     ThreadFinished,
     #[error("Thread not running")]
     ThreadNotRunning,
-    #[error("Ipc Queue Mutex was poisioned")]
+    #[error("Ipc Queue Mutex was poisoned")]
     MutexPoisoned,
     #[error("Ipc Queue signal set")]
     Signalled,
+    #[error("Named pipe was closed")]
+    PipeClosed,
 }
 
 impl From<ThreadSafeQueueError> for IpcError {
     fn from(val: ThreadSafeQueueError) -> Self {
         match val {
-            ThreadSafeQueueError::MutexPoision => IpcError::MutexPoisoned,
+            ThreadSafeQueueError::MutexPoison => IpcError::MutexPoisoned,
             ThreadSafeQueueError::StatusNotOk => IpcError::Signalled,
         }
     }

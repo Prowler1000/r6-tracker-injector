@@ -49,15 +49,24 @@ impl MemoryWalker {
                 && block.is_readwrite()
                 && !block.is_reserved()
                 && !block.is_guard()
-                && !std::panic::catch_unwind(AssertUnwindSafe(|| {
-                    f(block.align_to::<u8>().unwrap(), block)
-                }))
-                .map_err(|_e| {
-                    windows::core::Error::new(
-                        windows::core::HRESULT(0x80004005u32 as i32), // E_FAIL
-                        format!("Panic occurred while processing memory block {:#?} ({} bytes) [COMMIT: {} | RW: {} | RSV: {} | GUARD: {}]", addr, block.size, block.is_commit(), block.is_readwrite(), block.is_reserved(), block.is_guard()),
-                    )
-                })?
+                && !microseh::try_seh(|| {
+                    std::panic::catch_unwind(AssertUnwindSafe(|| {
+                        f(block.align_to::<u8>().unwrap(), block)
+                    })).map_err(|_e| {
+                        windows::core::Error::new(
+                            windows::core::HRESULT(0x80004005u32 as i32), // E_FAIL
+                            format!("Panic occurred while processing memory block {:#?} ({} bytes) [COMMIT: {} | RW: {} | RSV: {} | GUARD: {}]", addr, block.size, block.is_commit(), block.is_readwrite(), block.is_reserved(), block.is_guard()),
+                        )
+                    })
+                }).map_err(|exception|windows::core::Error::new(
+                    windows::core::HRESULT(0x8000FFFFu32 as i32), // E_UNEXPECTED
+                    format!(
+                        "A hardware exception occurred at {:#?} with code 0x{:X} ({})",
+                        exception.address(),
+                        exception.code() as u32,
+                        exception.code()
+                    ),
+                ))??
             {
                 break;
             }
