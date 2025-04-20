@@ -7,3 +7,4 @@ edition = "2024"
 thread_safe_utils = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
+microseh = { workspace = true }
